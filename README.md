@@ -83,3 +83,34 @@ Because it registers replacements for those built-in tool names, it may conflict
 ### Uninstall
 
 Remove `activity.ts` from your personal extensions directory and run `/reload`.
+
+## Thinking Rows
+
+[`extensions/thinking-rows.ts`](extensions/thinking-rows.ts) adds a line count and shortcut hint to each collapsed thinking block:
+
+```text
+▶ Thinking · 8 lines · ctrl+t to expand
+```
+
+The count is the number of source-text lines in that thinking block, not terminal-wrapped lines. Counts update while output streams and remain specific to each block. Pi's existing fullscreen click behavior and `Ctrl+T` toggle are preserved; customized thinking-toggle keybindings are reflected in the hint. Thinking content and conversation context are unchanged.
+
+### Installation
+
+From this repository's directory:
+
+```bash
+mkdir -p ~/.pi/agent/extensions
+cp extensions/thinking-rows.ts ~/.pi/agent/extensions/thinking-rows.ts
+```
+
+Use your custom agent directory if `PI_CODING_AGENT_DIR` is set. Run `/reload` in Pi. Press `Ctrl+T` if thinking is currently expanded; Pi remembers this display preference. You can also set `"hideThinkingBlock": true` in your Pi settings to start collapsed.
+
+### Compatibility and uninstall
+
+Tested with Pi 1.0.0. Pi's public API supports only a static hidden-thinking label, so per-block counts use a reversible hook into the existing assistant-message renderer. The internal-field accesses are guarded; if those fields change, the static shortcut label remains available, but counts may stop appearing. This extension may need updates for future Pi versions or other extensions that modify the same renderer.
+
+The hook is installed only in terminal UI mode and removed on shutdown or reload. To uninstall, remove `thinking-rows.ts` from your personal extensions directory and run `/reload`.
+
+## Planned improvements
+
+See [TODO.md](TODO.md) for nested activity batches and other planned work.
