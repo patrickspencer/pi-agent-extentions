@@ -111,6 +111,63 @@ Tested with Pi 1.0.0. Pi's public API supports only a static hidden-thinking lab
 
 The hook is installed only in terminal UI mode and removed on shutdown or reload. To uninstall, remove `thinking-rows.ts` from your personal extensions directory and run `/reload`.
 
+## Nested Activity Batches (prototype)
+
+[`extensions/activity-batches.ts`](extensions/activity-batches.ts) groups each prompt's thinking and tool calls into a single collapsed parent row:
+
+```text
+▶ Activity #1 · 4 actions · /batches 1 to expand
+```
+
+Expand the parent to reveal the individual rows, then expand just the item you want:
+
+```text
+▼ Activity #1 · 4 actions · /batches 1 to collapse
+  ▶ Thinking · 3 lines · ctrl+t to expand
+  ▶ ✓ Read file.ts · 2 lines · ctrl+o to expand
+  ▶ ✓ $ echo sample · 1 lines · ctrl+o to expand
+  ▶ Thinking · 1 line · ctrl+t to expand
+```
+
+Assistant text, including the final answer, stays outside the batch. The original transcript children and model messages are preserved; grouping changes only the display. Nested tool calls keep Pi's existing parent-tool representation rather than adding duplicate transcript entries.
+
+### Installation
+
+Use this alongside `activity.ts` and `thinking-rows.ts` for compact individual tool/thinking rows. Without those extensions, inner items keep Pi's native rendering.
+
+From this repository's directory:
+
+```bash
+cp extensions/activity-batches.ts ~/.pi/agent/extensions/activity-batches.ts
+```
+
+Use your custom agent directory if configured, then run `/reload`. Grouping starts enabled, with parent batches collapsed. Batch numbering is based on the currently rendered transcript; rebuilding history may renumber batches and reset their expansion state.
+
+### Controls
+
+| Control | Action |
+| --- | --- |
+| Click a batch header in fullscreen mode | Expand/collapse that batch |
+| `Ctrl+Shift+B` | Toggle the latest batch (terminal keyboard-protocol support may vary) |
+| `/batches` | Toggle the latest batch |
+| `/batches 2` | Toggle batch 2 |
+| `/batches 2 3` | Open batch 2 and toggle its third item |
+| `/batches all` | Expand all batches, or collapse all if already expanded |
+| `/batches off` / `/batches on` | Disable/enable grouping |
+| `Ctrl+O` / `Ctrl+T` | Pi's existing global tool/thinking expansion controls |
+
+Opening a parent does not automatically expand its items. Individual expansion is retained when closing and reopening the parent. `/batches off` restores the ungrouped transcript while leaving the other extensions' compact-row styling in place.
+
+To test after `/reload`, ask the agent to read a few lines from a file and run a short command. The finished activity should appear in one batch, with the final answer outside it. Open the batch and test individual rows with clicks or `/batches NUMBER ITEM`.
+
+### Compatibility and uninstall
+
+This is a **Pi 1.0.0 prototype** using reversible `Container.render`/mouse-dispatch hooks and guarded access to assistant-message renderer internals. It discovers the existing transcript and builds a separate display projection without reparenting its real components. Other extensions that replace the same renderers or transcript layout may conflict.
+
+Automated renderer tests cover nested clicks, keyboard controls, error/running state, widths, history reconstruction, global Pi toggles, and cleanup. Full interactive validation—especially compaction, selection, and both terminal modes—is still tracked in [TODO.md](TODO.md).
+
+Remove `activity-batches.ts` and run `/reload` to uninstall. The hook is also removed on session shutdown; non-TUI modes do not install it.
+
 ## Planned improvements
 
-See [TODO.md](TODO.md) for nested activity batches and other planned work.
+See [TODO.md](TODO.md) for batch validation and visual-polish work.
