@@ -2,11 +2,11 @@ import {
   AssistantMessageComponent, keyHint,
   type ExtensionAPI, type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { MouseRegion, Text } from "@earendil-works/pi-tui";
+import { Markdown, MouseRegion, Text, sliceByColumn, truncateToWidth } from "@earendil-works/pi-tui";
 
 // Pi 1.0.0 exposes a static hidden-thinking label but no per-block label
-// renderer. This reversible compatibility hook decorates the existing Text
-// components, preserving Pi's thinking content, click handlers and Ctrl+T.
+// renderer. This reversible compatibility hook replaces each thinking region's
+// display child, preserving Pi's content, click handlers and Ctrl+T.
 // If Pi changes its renderer internals, the static shortcut label still works.
 type AssistantMessage = Parameters<AssistantMessageComponent["updateContent"]>[0];
 
@@ -30,7 +30,8 @@ function thinkingLineCounts(message: AssistantMessage): number[] {
 }
 
 function decorateRows(component: AssistantMessageComponent, message: AssistantMessage, ctx: ExtensionContext) {
-  // These two fields are implementation details; guard both before using them.
+  // Renderer internals are guarded. The native Text/Markdown is retained for
+  // body rendering; only its surrounding layout is replaced.
   const container = Reflect.get(component, "contentContainer");
   if (!container || !Array.isArray(container.children)) return;
   const counts = thinkingLineCounts(message);
@@ -39,12 +40,30 @@ function decorateRows(component: AssistantMessageComponent, message: AssistantMe
     if (!(region instanceof MouseRegion)) continue;
     const count = counts[run++];
     const child = Reflect.get(region, "child");
-    // Expanded thinking uses Markdown. Only change the collapsed Text label.
-    if (!(child instanceof Text) || count === undefined) continue;
-    const label = ctx.ui.theme.fg("thinkingText", "▶ Thinking")
-      + ctx.ui.theme.fg("muted", ` · ${count} ${count === 1 ? "line" : "lines"} · `)
-      + keyHint("app.thinking.toggle", "to expand");
-    child.setText(label);
+    if (!(child instanceof Text || child instanceof Markdown) || count === undefined) continue;
+    const expanded = child instanceof Markdown;
+    const nativePadding = Reflect.get(child, "paddingX");
+    const padding = typeof nativePadding === "number" ? Math.max(0, nativePadding) : 0;
+    Reflect.set(region, "child", {
+      invalidate() { child.invalidate(); },
+      render(width: number): string[] {
+        const theme = ctx.ui.theme;
+        // Reserve the same status column as tools (which show ✓/✗ here).
+        const label = theme.fg("muted", `${expanded ? "▼" : "▶"}   `)
+          + theme.fg("toolTitle", "Thinking")
+          + theme.fg("muted", ` · ${count} ${count === 1 ? "line" : "lines"} · `)
+          + keyHint("app.thinking.toggle", expanded ? "to collapse" : "to expand");
+        const heading = truncateToWidth(label, Math.max(0, width));
+        if (!expanded || width < 1) return [heading];
+        const indent = Math.min(2, width - 1);
+        const bodyWidth = width - indent;
+        // Remove native transcript padding without altering Markdown or
+        // double-wrapping its content, then apply the shared body inset.
+        const body = child.render(bodyWidth + padding * 2)
+          .map((line) => " ".repeat(indent) + sliceByColumn(line, padding, bodyWidth, true));
+        return [heading, ...body];
+      },
+    });
   }
 }
 
@@ -69,7 +88,7 @@ export default function thinkingRowsExtension(pi: ExtensionAPI) {
     };
     // Also refresh existing transcript components. This is the fallback label
     // if a future Pi version no longer exposes the guarded internal fields.
-    ctx.ui.setHiddenThinkingLabel(`▶ Thinking · ${keyHint("app.thinking.toggle", "to expand")}`);
+    ctx.ui.setHiddenThinkingLabel(`▶   Thinking · ${keyHint("app.thinking.toggle", "to expand")}`);
   });
 
   pi.on("session_shutdown", (_event, ctx) => {

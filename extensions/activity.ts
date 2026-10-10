@@ -1,10 +1,10 @@
 import {
   createBashToolDefinition, createReadToolDefinition, createEditToolDefinition,
   createWriteToolDefinition, createGrepToolDefinition, createFindToolDefinition,
-  createLsToolDefinition, createPowerShellToolDefinition, keyHint,
+  createLsToolDefinition, createPowerShellToolDefinition, keyHint, renderDiff,
   type ExtensionAPI, type ExtensionContext, type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import { Container, Text, stripTerminalSequences, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { Container, Text, stripTerminalSequences, truncateToWidth, visibleWidth, type Component } from "@earendil-works/pi-tui";
 
 // A passive live viewport: no extra tool executions, prompts, or transcript entries.
 const WIDGET_KEY = "live-tool-activity";
@@ -63,6 +63,12 @@ function outputTail(result: unknown): string[] {
     .slice(-OUTPUT_LINES);
 }
 
+function indentedBody(body: Component, width: number): string[] {
+  if (width < 1) return [];
+  const indent = Math.min(2, width - 1);
+  return body.render(width - indent).map((line) => " ".repeat(indent) + line);
+}
+
 export default function activityExtension(pi: ExtensionAPI) {
   let enabled = true;
   let active = false;
@@ -100,13 +106,13 @@ export default function activityExtension(pi: ExtensionAPI) {
       return {
         invalidate() {},
         render(width: number): string[] {
-          const hint = theme.fg("muted", ` · ${lineCount} lines · `) + keyHint("app.tools.expand", options.expanded ? "to collapse" : "to expand");
-          const prefix = theme.fg(color, `${options.expanded ? "▼" : "▶"} ${marker} `);
+          const hint = theme.fg("muted", ` · ${lineCount} ${lineCount === 1 ? "line" : "lines"} · `) + keyHint("app.tools.expand", options.expanded ? "to collapse" : "to expand");
+          const prefix = theme.fg("muted", `${options.expanded ? "▼" : "▶"} `) + theme.fg(color, marker) + " ";
           const budget = Math.max(0, width - visibleWidth(prefix) - visibleWidth(hint));
           const heading = truncateToWidth(prefix + theme.fg("toolTitle", truncateToWidth(`$ ${command}`, budget)) + hint, width);
           if (!options.expanded) return [heading];
           const full = theme.fg("toolTitle", `$ ${plain(context.args.command || "")}`) + "\n\n" + theme.fg("toolOutput", text || "(no output)");
-          return [heading, ...new Text(full, 0, 0).render(width)];
+          return [heading, ...indentedBody(new Text(full, 0, 0), width)];
         },
       };
     },
@@ -152,7 +158,11 @@ export default function activityExtension(pi: ExtensionAPI) {
           if (native.name === "write" && native.renderCall) {
             body.addChild(native.renderCall(context.args, theme, renderContext));
           }
-          if (native.renderResult) {
+          if (native.name === "edit" && !context.isError && typeof result.details?.diff === "string") {
+            // Use Pi's public diff renderer with zero base padding, matching
+            // the other tools before applying the shared two-column inset.
+            body.addChild(new Text("\n" + renderDiff(result.details.diff, { filePath: context.args.path }), 0, 0));
+          } else if (native.renderResult) {
             body.addChild(native.renderResult(result, options, theme, renderContext));
           } else {
             body.addChild(new Text(theme.fg("toolOutput", text || "(no output)"), 0, 0));
@@ -161,11 +171,11 @@ export default function activityExtension(pi: ExtensionAPI) {
         return {
           invalidate() { body.invalidate(); },
           render(width: number): string[] {
-            const hint = theme.fg("muted", ` · ${lineCount} lines · `) + keyHint("app.tools.expand", options.expanded ? "to collapse" : "to expand");
-            const prefix = theme.fg(color, `${options.expanded ? "▼" : "▶"} ${marker} `);
+            const hint = theme.fg("muted", ` · ${lineCount} ${lineCount === 1 ? "line" : "lines"} · `) + keyHint("app.tools.expand", options.expanded ? "to collapse" : "to expand");
+            const prefix = theme.fg("muted", `${options.expanded ? "▼" : "▶"} `) + theme.fg(color, marker) + " ";
             const budget = Math.max(0, width - visibleWidth(prefix) - visibleWidth(hint));
             const heading = truncateToWidth(prefix + theme.fg("toolTitle", truncateToWidth(label, budget)) + hint, width);
-            return options.expanded ? [heading, ...body.render(width)] : [heading];
+            return options.expanded ? [heading, ...indentedBody(body, width)] : [heading];
           },
         };
       },

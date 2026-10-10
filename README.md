@@ -12,7 +12,8 @@ Personal extensions for the [Pi coding agent](https://pi.dev).
 - Displays the last three lines of available streaming output.
 - Hides the live panel when the agent finishes.
 - Replaces the built-in tools' large result boxes with compact rows.
-- Uses **▶ / ▼** arrows to expand and collapse results.
+- Uses muted **▶ / ▼** arrows, with separately colored success/error indicators.
+- Aligns tool and thinking headers, and indents expanded contents by two columns.
 - Keeps file contents, command output, and edit diffs available when expanded.
 - Supports parallel and nested tool activity, terminal resizing, and theme changes.
 
@@ -89,8 +90,10 @@ Remove `activity.ts` from your personal extensions directory and run `/reload`.
 [`extensions/thinking-rows.ts`](extensions/thinking-rows.ts) adds a line count and shortcut hint to each collapsed thinking block:
 
 ```text
-▶ Thinking · 8 lines · ctrl+t to expand
+▶   Thinking · 8 lines · ctrl+t to expand
 ```
+
+The blank status column aligns the thinking label with tool labels. Expanded thinking retains a `▼` header with a collapse hint and a two-column inset for its Markdown body, matching expanded file/command results. Batch indentation is applied on top of this inset.
 
 The count is the number of source-text lines in that thinking block, not terminal-wrapped lines. Counts update while output streams and remain specific to each block. Pi's existing fullscreen click behavior and `Ctrl+T` toggle are preserved; customized thinking-toggle keybindings are reflected in the hint. Thinking content and conversation context are unchanged.
 
@@ -123,10 +126,10 @@ Expand the parent to reveal the individual rows, then expand just the item you w
 
 ```text
 ▼ Activity #1 · 4 actions · /batches 1 to collapse
-  ▶ Thinking · 3 lines · ctrl+t to expand
+  ▶   Thinking · 3 lines · ctrl+t to expand
   ▶ ✓ Read file.ts · 2 lines · ctrl+o to expand
-  ▶ ✓ $ echo sample · 1 lines · ctrl+o to expand
-  ▶ Thinking · 1 line · ctrl+t to expand
+  ▶ ✓ $ echo sample · 1 line · ctrl+o to expand
+  ▶   Thinking · 1 line · ctrl+t to expand
 ```
 
 Assistant text, including the final answer, stays outside the batch. The original transcript children and model messages are preserved; grouping changes only the display. Nested tool calls keep Pi's existing parent-tool representation rather than adding duplicate transcript entries.
@@ -168,6 +171,22 @@ Automated renderer tests cover nested clicks, keyboard controls, error/running s
 
 Remove `activity-batches.ts` and run `/reload` to uninstall. The hook is also removed on session shutdown; non-TUI modes do not install it.
 
+## Renderer regression tests
+
+With a managed Pi installation, run:
+
+```bash
+node tests/visual-polish.test.mjs
+```
+
+The test detects the active Pi installation under the agent directory. For an npm or custom installation, point it at the installed `@earendil-works/pi-coding-agent` package directory:
+
+```bash
+PI_TEST_PACKAGE_DIR=/absolute/path/to/pi-coding-agent node tests/visual-polish.test.mjs
+```
+
+Tests exercise the real Pi components in dark/light themes with different transcript padding, nested and ungrouped rows, Unicode, narrow widths, independent mouse toggles, indented bodies, and muted arrows with separately colored status markers. This is a renderer-level check, not a substitute for testing terminal interaction visually.
+
 ## Planned improvements
 
-See [TODO.md](TODO.md) for batch validation and visual-polish work.
+See [TODO.md](TODO.md) for remaining batch and visual validation work.

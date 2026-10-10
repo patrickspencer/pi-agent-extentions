@@ -16,7 +16,8 @@ Implemented as a prototype in `extensions/activity-batches.ts`. Renderer tests c
 
 ## Collapsed-row visual polish
 
-- [ ] Review colors on collapsed read, write, edit, search, and command rows. Use a neutral or muted expand/collapse arrow instead of the distracting green arrow; keep success/error indications separate.
-- [ ] Align thinking rows with tool rows. Thinking is currently indented slightly farther to the right; give both the same left padding, arrow column, label column, and consistent spacing.
-- [ ] Slightly indent expanded contents under their collapsed-row headers, including read/write text, edit diffs, command output, and thinking text, to distinguish them from the surrounding transcript. Keep indentation consistent with nested batch levels.
-- [ ] Check alignment and contrast in light/dark themes, narrow terminals, and both regular and fullscreen modes.
+- [x] Use muted expand/collapse arrows on collapsed read, write, edit, search, and command rows; keep success/error indicators separately colored.
+- [x] Align thinking and tool rows with the same left padding, arrow column, reserved status column, label column, and consistent spacing.
+- [x] Indent expanded read/write contents, edit diffs, command output, and thinking text by two columns beneath their headers, in addition to any batch indentation.
+- [x] Add automated dark/light theme, native output-padding, Unicode, narrow-width, mouse-toggle, semantic-color, and nested-indentation tests.
+- [ ] Visually check contrast and alignment in real light/dark terminals, narrow windows, and both regular/fullscreen modes.
